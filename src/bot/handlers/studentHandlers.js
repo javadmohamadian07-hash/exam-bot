@@ -1,3 +1,4 @@
+import { InlineKeyboard } from 'grammy';
 import { linkStudentTelegramId, getStudentByTelegramId, logoutStudent } from '../../services/studentService.js';
 import { getActiveExamsForStudent, getUpcomingExamsForStudent, getPreviousResultsForStudent } from '../../services/examService.js';
 import { getStudentMenuKeyboard, getExamSelectionKeyboard } from '../../keyboards/mainMenu.js';
@@ -126,7 +127,8 @@ export async function handleShowPreviousResults(ctx) {
       detail.detailedSheet.forEach(q => {
         const icon = q.isCorrect ? '✅' : (q.isBlank ? '⚪' : '❌');
         const ansStr = q.studentOption === 0 ? 'بدون پاسخ' : `گزینه ${q.studentOption}`;
-        text += `   سوال ${q.questionNum}: ${icon} پاسخ شما: ${ansStr} | پاسخ صحیح: گزینه ${q.correctOption}\n`;
+        const displayNum = q.displayQuestionNum || q.questionNum;
+        text += `   سوال ${displayNum}: ${icon} پاسخ شما: ${ansStr} | پاسخ صحیح: گزینه ${q.correctOption}\n`;
       });
       text += `\n--------------------------------\n\n`;
     }
@@ -152,6 +154,59 @@ export async function handleShowRankings(ctx) {
   });
 
   await ctx.reply(text, { parse_mode: 'Markdown' });
+}
+
+export async function handleGetAnswerKey(ctx) {
+  const student = ctx.state.student;
+  if (!student) return ctx.reply('❌ لطفاً ابتدا با /login وارد شوید.');
+
+  const results = await getPreviousResultsForStudent(student._id);
+  if (!results || results.length === 0) {
+    return ctx.reply('📄 شما هنوز هیچ آزمونی را کامل نکرده‌اید تا پاسخنامه آن را دریافت کنید.');
+  }
+
+  const keyboard = new InlineKeyboard();
+  results.forEach(att => {
+    if (att.examId) {
+      keyboard.text(`📄 ${att.examId.title}`, `get_answer_key_${att.examId._id}`).row();
+    }
+  });
+
+  await ctx.reply('📄 *آزمون‌های تکمیل‌شده شما:*\n\nبرای دریافت پاسخنامه، آزمون مورد نظر را انتخاب کنید:', {
+    parse_mode: 'Markdown',
+    reply_markup: keyboard,
+  });
+}
+
+export async function handleSendAnswerKey(ctx) {
+  const student = ctx.state.student;
+  if (!student) return ctx.answerCallbackQuery('دسترسی غیرمجاز');
+
+  const examId = ctx.callbackQuery.data.replace('get_answer_key_', '');
+
+  // Verify student has completed this exam
+  const results = await getPreviousResultsForStudent(student._id);
+  const completed = results.find(att => att.examId && att.examId._id.toString() === examId);
+
+  if (!completed) {
+    await ctx.answerCallbackQuery('شما هنوز این آزمون را کامل نکرده‌اید');
+    return ctx.reply('❌ شما هنوز این آزمون را کامل نکرده‌اید. فقط پس از اتمام آزمون می‌توانید پاسخنامه را دریافت کنید.');
+  }
+
+  const exam = completed.examId;
+
+  if (exam.answerPdfFileId) {
+    await ctx.answerCallbackQuery('پاسخنامه ارسال شد');
+    await ctx.replyWithDocument(exam.answerPdfFileId, {
+      caption: `📄 پاسخنامه آزمون: ${exam.title}`,
+    });
+  } else if (exam.answerPdfUrl) {
+    await ctx.answerCallbackQuery('پاسخنامه ارسال شد');
+    await ctx.reply(`📄 لینک پاسخنامه آزمون ${exam.title}:\n${exam.answerPdfUrl}`);
+  } else {
+    await ctx.answerCallbackQuery('پاسخنامه موجود نیست');
+    await ctx.reply('ℹ️ برای این آزمون پاسخنامه PDF ارسال نشده است.');
+  }
 }
 
 export async function handleStudentLogout(ctx) {

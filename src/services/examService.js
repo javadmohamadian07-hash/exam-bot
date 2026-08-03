@@ -1,16 +1,22 @@
 import { Exam } from '../models/Exam.js';
 import { ExamAttempt } from '../models/ExamAttempt.js';
+import { resolveStudentIdsFromCategories } from './categoryService.js';
 
 export async function createExam({
   title,
   pdfUrl,
   pdfFileName,
   pdfFileId,
+  answerPdfUrl,
+  answerPdfFileName,
+  answerPdfFileId,
+  startQuestionNumber,
   questionCount,
   durationMinutes,
   allowedStartDate,
   allowedEndDate,
   allowedStudentIds,
+  allowedCategoryIds,
   answerKey,
   createdBy = 'admin'
 }) {
@@ -18,16 +24,26 @@ export async function createExam({
     throw new Error(`Answer key count (${answerKey ? answerKey.length : 0}) does not match question count (${questionCount}).`);
   }
 
+  // Resolve categories to student IDs and merge with individually selected students
+  const categoryStudentIds = await resolveStudentIdsFromCategories(allowedCategoryIds);
+  const mergedStudentIds = new Set([...(allowedStudentIds || []).map(id => id.toString()), ...categoryStudentIds]);
+  const finalStudentIds = [...mergedStudentIds];
+
   const exam = new Exam({
     title,
     pdfUrl: pdfUrl || '',
     pdfFileName: pdfFileName || 'exam.pdf',
     pdfFileId: pdfFileId || null,
+    answerPdfUrl: answerPdfUrl || '',
+    answerPdfFileName: answerPdfFileName || 'answer-key.pdf',
+    answerPdfFileId: answerPdfFileId || null,
+    startQuestionNumber: Number(startQuestionNumber) || 1,
     questionCount: Number(questionCount),
     durationMinutes: Number(durationMinutes),
     allowedStartDate: new Date(allowedStartDate),
     allowedEndDate: new Date(allowedEndDate),
-    allowedStudentIds,
+    allowedStudentIds: finalStudentIds,
+    allowedCategoryIds: allowedCategoryIds || [],
     answerKey,
     isImmutable: true,
     createdBy

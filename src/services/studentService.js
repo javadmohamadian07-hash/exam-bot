@@ -75,6 +75,7 @@ export async function logoutStudent(telegramId) {
 export async function deleteStudent(studentId) {
   const { ExamAttempt } = await import('../models/ExamAttempt.js');
   const { Exam } = await import('../models/Exam.js');
+  const { Category } = await import('../models/Category.js');
 
   // 1. Delete all exam attempts for this student
   await ExamAttempt.deleteMany({ studentId });
@@ -85,7 +86,13 @@ export async function deleteStudent(studentId) {
     { $pull: { allowedStudentIds: studentId } }
   );
 
-  // 3. Delete the student record
+  // 3. Remove student from all categories
+  await Category.updateMany(
+    { studentIds: studentId },
+    { $pull: { studentIds: studentId } }
+  );
+
+  // 4. Delete the student record
   const result = await Student.findByIdAndDelete(studentId);
   return result;
 }

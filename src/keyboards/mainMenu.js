@@ -5,6 +5,8 @@ export function getAdminMenuKeyboard() {
     .text('👥 تعریف دانش‌آموز').text('📝 تعریف آزمون جدید').row()
     .text('🗑️ حذف آزمون').text('📊 نتایج همه آزمون‌ها').row()
     .text('👥 لیست دانش‌آموزان').text('❌ حذف دانش‌آموز').row()
+    .text('🏷️ دسته‌بندی جدید').text('👥 افزودن دانش‌آموز به دسته').row()
+    .text('🗑️ حذف دسته‌بندی').row()
     .resized();
 }
 
@@ -12,7 +14,7 @@ export function getStudentMenuKeyboard() {
   return new Keyboard()
     .text('📝 آزمون‌های فعال').text('📅 آزمون‌های آینده').row()
     .text('📊 کارنامه و نتایج قبلی').text('🏆 رتبه‌بندی').row()
-    .text('🚪 خروج از حساب').row()
+    .text('📄 دریافت پاسخنامه').text('🚪 خروج از حساب').row()
     .resized();
 }
 

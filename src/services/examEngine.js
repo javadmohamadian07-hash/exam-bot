@@ -119,7 +119,7 @@ export async function submitAnswer(attemptId, questionNum, option) {
 }
 
 export async function toggleMarkQuestion(attemptId, questionNum) {
-  const attempt = await ExamAttempt.findById(attemptId);
+  const attempt = await ExamAttempt.findById(attemptId).populate('examId');
   if (!attempt) throw new Error('Attempt not found.');
 
   const answerIdx = attempt.answers.findIndex(a => a.questionNum === Number(questionNum));
@@ -184,9 +184,11 @@ export async function getDetailedAttemptResult(attemptId) {
   const answersMap = new Map();
   attempt.answers.forEach(a => answersMap.set(a.questionNum, a));
 
+  const startNum = exam.startQuestionNumber || 1;
   const detailedSheet = [];
   for (let i = 0; i < exam.questionCount; i++) {
     const qNum = i + 1;
+    const displayQuestionNum = startNum + i;
     const correctOption = exam.answerKey[i];
     const studentAns = answersMap.get(qNum) || { selectedOption: 0, isMarked: false };
     
@@ -198,6 +200,7 @@ export async function getDetailedAttemptResult(attemptId) {
 
     detailedSheet.push({
       questionNum: qNum,
+      displayQuestionNum,
       studentOption: studentAns.selectedOption,
       correctOption,
       isCorrect,

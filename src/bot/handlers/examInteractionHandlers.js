@@ -78,11 +78,12 @@ export async function handleShowAnswerSheet(ctx) {
   });
 
   // Generate each question as a message
+  const startNum = exam.startQuestionNumber || 1;
   for (let q = 1; q <= exam.questionCount; q++) {
     const ans = answersMap.get(q) || { selectedOption: 0, isMarked: false };
     const keyboard = getQuestionKeyboard(attemptId, q, ans.selectedOption, ans.isMarked);
 
-    let qText = `سوال ${q}`;
+    let qText = `سوال ${startNum + q - 1}`;
     if (ans.selectedOption > 0) {
       qText += ` (انتخاب شده: گزینه ${ans.selectedOption})`;
     }
@@ -110,10 +111,11 @@ export async function handleAnswerSelection(ctx) {
 
   const attempt = res.attempt;
   const ans = attempt.answers.find(a => a.questionNum === questionNum) || { selectedOption: option, isMarked: false };
+  const startNum = attempt.examId.startQuestionNumber || 1;
 
   const keyboard = getQuestionKeyboard(attemptId, questionNum, option, ans.isMarked);
 
-  let qText = `سوال ${questionNum}`;
+  let qText = `سوال ${startNum + questionNum - 1}`;
   if (option > 0) {
     qText += ` (انتخاب شده: گزینه ${option})`;
   } else {
@@ -137,11 +139,12 @@ export async function handleToggleMark(ctx) {
   const questionNum = parseInt(data[2], 10);
 
   const { attempt, isMarked } = await toggleMarkQuestion(attemptId, questionNum);
+  const startNum = attempt.examId.startQuestionNumber || 1;
 
   const ans = attempt.answers.find(a => a.questionNum === questionNum) || { selectedOption: 0, isMarked };
   const keyboard = getQuestionKeyboard(attemptId, questionNum, ans.selectedOption, isMarked);
 
-  let qText = `سوال ${questionNum}`;
+  let qText = `سوال ${startNum + questionNum - 1}`;
   if (ans.selectedOption > 0) {
     qText += ` (انتخاب شده: گزینه ${ans.selectedOption})`;
   }
@@ -186,7 +189,8 @@ export async function handleShowMarkedQuestions(ctx) {
   const attempt = await getActiveAttemptForStudent(student._id);
   if (!attempt) return ctx.reply('ℹ️ آزمون فعالی یافت نشد.');
 
-  const marked = attempt.answers.filter(a => a.isMarked).map(a => a.questionNum);
+  const startNum = attempt.examId.startQuestionNumber || 1;
+  const marked = attempt.answers.filter(a => a.isMarked).map(a => startNum + a.questionNum - 1);
 
   if (marked.length === 0) {
     return ctx.reply('📌 شما هنوز هیچ سوالی را نشان‌گذاری نکرده‌اید.');
@@ -203,11 +207,12 @@ export async function handleShowUnansweredQuestions(ctx) {
   if (!attempt) return ctx.reply('ℹ️ آزمون فعالی یافت نشد.');
 
   const total = attempt.examId.questionCount;
+  const startNum = attempt.examId.startQuestionNumber || 1;
   const answeredSet = new Set(attempt.answers.filter(a => a.selectedOption > 0).map(a => a.questionNum));
 
   const unanswered = [];
   for (let q = 1; q <= total; q++) {
-    if (!answeredSet.has(q)) unanswered.push(q);
+    if (!answeredSet.has(q)) unanswered.push(startNum + q - 1);
   }
 
   if (unanswered.length === 0) {
@@ -287,7 +292,8 @@ export async function showFinalExamResult(ctx, attemptId) {
   detailedSheet.forEach(q => {
     const icon = q.isCorrect ? '✅ درست' : (q.isBlank ? '⚪ نزده' : '❌ نادرست');
     const studAnsStr = q.studentOption === 0 ? 'بدون پاسخ' : `گزینه ${q.studentOption}`;
-    text += `سوال ${q.questionNum}: ${icon} | پاسخ شما: ${studAnsStr} | پاسخ صحیح: گزینه ${q.correctOption}\n`;
+    const displayNum = q.displayQuestionNum || q.questionNum;
+    text += `سوال ${displayNum}: ${icon} | پاسخ شما: ${studAnsStr} | پاسخ صحیح: گزینه ${q.correctOption}\n`;
   });
 
   await ctx.reply(text, { parse_mode: 'Markdown' });

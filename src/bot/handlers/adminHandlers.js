@@ -1,5 +1,6 @@
 import { createStudent, getAllStudents, deleteStudent } from '../../services/studentService.js';
 import { getAllExams, deleteExam, getExamResultsForAdmin } from '../../services/examService.js';
+import { getAllCategories, deleteCategory } from '../../services/categoryService.js';
 import { InlineKeyboard } from 'grammy';
 
 export async function handleCreateStudentStart(ctx) {
@@ -146,6 +147,35 @@ export async function handleShowAdminExamResults(ctx) {
 
   await ctx.answerCallbackQuery();
   await ctx.reply(text, { parse_mode: 'Markdown' });
+}
+
+export async function handleDeleteCategoryPrompt(ctx) {
+  if (!ctx.state.isAdmin) return ctx.reply('❌ دسترسی مدیر لازم است.');
+
+  const categories = await getAllCategories();
+  if (!categories || categories.length === 0) {
+    return ctx.reply('ℹ️ هیچ دسته‌بندی برای حذف وجود ندارد.');
+  }
+
+  const keyboard = new InlineKeyboard();
+  categories.forEach(cat => {
+    keyboard.text(`🗑️ ${cat.name} (${cat.studentIds.length} دانش‌آموز)`, `delete_category_${cat._id}`).row();
+  });
+
+  await ctx.reply('🗑️ *دسته‌بندی مورد نظر برای حذف دائمی را انتخاب کنید:*', {
+    parse_mode: 'Markdown',
+    reply_markup: keyboard,
+  });
+}
+
+export async function handleConfirmDeleteCategory(ctx) {
+  if (!ctx.state.isAdmin) return ctx.answerCallbackQuery('دسترسی غیرمجاز');
+
+  const categoryId = ctx.callbackQuery.data.replace('delete_category_', '');
+  await deleteCategory(categoryId);
+
+  await ctx.answerCallbackQuery('دسته‌بندی حذف شد');
+  await ctx.editMessageText('✅ *دسته‌بندی با موفقیت حذف شد.*\n\nتوجه: دانش‌آموزان دسته حذف نمی‌شوند و فقط از این دسته خارج می‌شوند.', { parse_mode: 'Markdown' });
 }
 
 export async function handleDeleteStudentPrompt(ctx) {

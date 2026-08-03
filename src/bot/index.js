@@ -9,6 +9,8 @@ import { authMiddleware } from './middlewares/auth.js';
 import { getAdminMenuKeyboard, getStudentMenuKeyboard } from '../keyboards/mainMenu.js';
 
 import { createExamConversation } from './conversations/createExamConversation.js';
+import { createCategoryConversation } from './conversations/createCategoryConversation.js';
+import { addStudentToCategoryConversation } from './conversations/addStudentToCategoryConversation.js';
 
 import { 
   handleCreateStudentStart, 
@@ -19,7 +21,9 @@ import {
   handleViewAllResultsPrompt, 
   handleShowAdminExamResults,
   handleDeleteStudentPrompt,
-  handleConfirmDeleteStudent
+  handleConfirmDeleteStudent,
+  handleDeleteCategoryPrompt,
+  handleConfirmDeleteCategory
 } from './handlers/adminHandlers.js';
 
 import { 
@@ -29,6 +33,8 @@ import {
   handleShowUpcomingExams, 
   handleShowPreviousResults, 
   handleShowRankings,
+  handleGetAnswerKey,
+  handleSendAnswerKey,
   handleStudentLogout
 } from './handlers/studentHandlers.js';
 
@@ -88,6 +94,8 @@ export function createTelegramBot(token = config.botToken, useProxy = true) {
 
   // Register conversations
   bot.use(createConversation(createExamConversation));
+  bot.use(createConversation(createCategoryConversation));
+  bot.use(createConversation(addStudentToCategoryConversation));
 
   // Custom Auth Middleware
   bot.use(authMiddleware);
@@ -138,12 +146,22 @@ export function createTelegramBot(token = config.botToken, useProxy = true) {
   bot.hears('📊 نتایج همه آزمون‌ها', handleViewAllResultsPrompt);
   bot.hears('👥 لیست دانش‌آموزان', handleListStudents);
   bot.hears('❌ حذف دانش‌آموز', handleDeleteStudentPrompt);
+  bot.hears('🏷️ دسته‌بندی جدید', async (ctx) => {
+    if (!ctx.state.isAdmin) return ctx.reply('❌ دسترسی مدیر لازم است.');
+    await ctx.conversation.enter('createCategoryConversation');
+  });
+  bot.hears('👥 افزودن دانش‌آموز به دسته', async (ctx) => {
+    if (!ctx.state.isAdmin) return ctx.reply('❌ دسترسی مدیر لازم است.');
+    await ctx.conversation.enter('addStudentToCategoryConversation');
+  });
+  bot.hears('🗑️ حذف دسته‌بندی', handleDeleteCategoryPrompt);
 
   // Student Text Buttons
   bot.hears('📝 آزمون‌های فعال', handleShowActiveExams);
   bot.hears('📅 آزمون‌های آینده', handleShowUpcomingExams);
   bot.hears('📊 کارنامه و نتایج قبلی', handleShowPreviousResults);
   bot.hears('🏆 رتبه‌بندی', handleShowRankings);
+  bot.hears('📄 دریافت پاسخنامه', handleGetAnswerKey);
   bot.hears('🚪 خروج از حساب', handleStudentLogout);
 
   // Exam Toolbar Buttons
@@ -163,6 +181,8 @@ export function createTelegramBot(token = config.botToken, useProxy = true) {
   bot.callbackQuery(/^delete_exam_/, handleConfirmDeleteExam);
   bot.callbackQuery(/^view_results_/, handleShowAdminExamResults);
   bot.callbackQuery(/^delete_student_/, handleConfirmDeleteStudent);
+  bot.callbackQuery(/^delete_category_/, handleConfirmDeleteCategory);
+  bot.callbackQuery(/^get_answer_key_/, handleSendAnswerKey);
 
   // Fallback text handler for login/creation step processing
   bot.on('message:text', async (ctx) => {
